@@ -1,6 +1,9 @@
 package com.example.vinzee.cmsc628hw2;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -10,58 +13,58 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.sql.Timestamp;
-import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
-    private EditText edtUser, edtLat, edtLon, edtTimestmp;
-    private Button btnSave, btnMaps;
+    private EditText edtUser;
+    private Button btnLogin, btnMaps;
     private WebserviceAsyncTask mytask;
+
+    private static final String TAG ="MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
         edtUser = (EditText) findViewById(R.id.username);
-        edtLat = (EditText) findViewById(R.id.latitude);
-        edtLon = (EditText) findViewById(R.id.longitude);
-        edtTimestmp = (EditText) findViewById(R.id.timestamp);
-        btnSave = (Button) findViewById(R.id.save);
-        btnSave.setOnClickListener(this);
+
+        btnLogin = (Button) findViewById(R.id.login);
+        btnLogin.setOnClickListener(this);
         btnMaps = (Button) findViewById(R.id.maps);
         btnMaps.setOnClickListener(this);
 
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        System.out.println(timestamp);
-        edtTimestmp.setText(timestamp.toString());
+        ConnectivityManager cm =
+                (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+
+        Log.d("isConnected: ", isConnected + "");
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.save:
-                String[] params = new String[9];
-                params[0] = "http://130.85.243.244:3000/nearbyfriends";
-                params[1] = "Latitude";
-                params[3] = "Longitude";
-                params[5] = "Userid";
-                params[7] = "Timestamp";
-                params[2] = edtLat.getText().toString();
-                params[4] = edtLon.getText().toString();
-                params[6] = edtUser.getText().toString();
-                params[8] = edtTimestmp.getText().toString();
+            case R.id.login:
+                JSONObject params = new JSONObject();
 
-                Log.w("time.", " " + Arrays.toString(params));
+                try {
+                    params.put("username", edtUser.getText().toString());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                Log.d("Params", params.toString());
 
                 mytask = new WebserviceAsyncTask();
                 mytask.execute(params);
@@ -74,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private class WebserviceAsyncTask extends AsyncTask<String, Integer, String>{
+    private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]>{
 
         @Override
         protected void onProgressUpdate(Integer... values) {
@@ -87,62 +90,59 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         @Override
-        protected void onPostExecute(String s) {
+        protected void onPostExecute(String[] s) {
             super.onPostExecute(s);
-            Log.w("msg ofter ex: ","Executed");
-        }
+            Log.w("WebserviceAsyncTask","onPostExecute called");
+            Toast.makeText(MainActivity.this, s[1].toString(), Toast.LENGTH_SHORT).show();
 
-        private String getParamsString(String[] params){
-            int numkeyvalue = (params.length - 1);
-            String paramsString = "";
-
-            for(int i = 1;i < numkeyvalue; i+=2){
-                if (i == numkeyvalue-3) paramsString = params[i]+"="+params[i+1];
-                else paramsString = params[i]+"="+params[i+1]+"&";
+            if(s[0] == "true"){
+                Intent myIntent = new Intent(MainActivity.this, MapsActivity.class);
+                MainActivity.this.startActivity(myIntent);
             }
-
-            return paramsString;
         }
-
 
         @Override
-        protected String doInBackground(String... params) {
-            System.out.println("doInBackground started");
-            HttpURLConnection client = null;
-
+        protected String[] doInBackground(JSONObject... jsonObjects) {
+            Log.d("doInBackground", "started");
             try {
-                client = (HttpURLConnection) new URL(params[0]).openConnection();
-                client.setRequestMethod("GET");
-                client.setDoOutput(true);
+                Log.d("doInBackground", Constants.BASE_URL + "/login");
 
-                String urlparameters = getParamsString(params);
-                OutputStream outputpost = new BufferedOutputStream(client.getOutputStream());
+                URL url = new URL(Constants.BASE_URL + "/login");
 
-                outputpost.write(urlparameters.getBytes());
-                outputpost.flush();
-                outputpost.close();
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setReadTimeout(5000);
+                connection.setConnectTimeout(5000);
+                connection.setRequestMethod("POST");
+                connection.setDoInput(true);
+                connection.setChunkedStreamingMode(0);
+                connection.setRequestProperty("Content-Type", "application/json;charset=utf-8");
+                connection.setRequestProperty("X-Requested-With", "XMLHttpRequest");
+                connection.connect();
 
-                if(client.getResponseCode() == HttpURLConnection.HTTP_OK)   {
-                    String line = "";
-                    BufferedReader bread = new BufferedReader(new  InputStreamReader(client.getInputStream()));
+                Writer writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()));
+                writer.write(jsonObjects[0].toString());
+                writer.close();
 
-                    while ((line = bread.readLine()) != null)   {
-                        line += bread.readLine();
+                if(connection.getResponseCode() == HttpURLConnection.HTTP_OK)   {
+                    StringBuilder line = new StringBuilder();
+                    BufferedReader bread = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+                    String temp = "";
+                    while ((temp = bread.readLine()) != null) {
+                        line.append(temp);
                     }
-
                     bread.close();
 
-                    JSONObject object = new JSONObject(line);
+//                    JSONObject object = new JSONObject(line.toString());
 
-                    if(new Integer(object.getString("Result")) == 1)  {
-                        Log.w("response: ","executed successfully!");
-                    }else   {
-                        Log.w("response: ","execution failed!");
-                    }
+                    Log.d("response: ","executed successfully!" + line);
+
+                    return new String[]{"true", "User logged in!"};
+                } else {
+                    return new String[] {"false", "Invalid Request: " + connection.getResponseCode()};
                 }
-
-                Toast.makeText(MainActivity.this,"Message sent",Toast.LENGTH_SHORT);
             } catch (Exception e) {
+                Log.d("WebserviceAsyncTask: ", "Exception");
                 e.printStackTrace();
             }
 

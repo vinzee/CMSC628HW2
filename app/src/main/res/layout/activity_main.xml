@@ -4,6 +4,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <TextView
+        android:id="@+id/appName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Friend Finder" />
+
     <EditText
         android:id="@+id/username"
         android:layout_width="match_parent"
@@ -14,38 +21,20 @@
         android:text="Username" />
 
     <EditText
-        android:id="@+id/latitude"
+        android:id="@+id/password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:ems="10"
         android:inputType="textPersonName"
-        android:text="latitude" />
-
-    <EditText
-        android:id="@+id/longitude"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:ems="10"
-        android:inputType="textPersonName"
-        android:text="longitude" />
-
-    <EditText
-        android:id="@+id/timestamp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:ems="10"
-        android:inputType="textPersonName"
-        android:text="timestamp" />
+        android:text="Password" />
 
     <Button
-        android:id="@+id/save"
+        android:id="@+id/login"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="Save" />
+        android:text="Login" />
     <Button
         android:id="@+id/maps"
         android:layout_width="match_parent"
