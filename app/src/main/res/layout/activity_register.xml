@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:padding="30dp"
+    android:paddingLeft="30dp"
+    android:paddingRight="30dp"
     >
 
     <android.support.design.widget.TextInputLayout
@@ -39,9 +40,24 @@
             android:hint="Password" />
     </android.support.design.widget.TextInputLayout>
 
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
+        <EditText
+            android:id="@+id/password_confirmation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ems="10"
+            android:inputType="textPassword"
+            android:textSize="20dp"
+            android:hint="Confirm Password" />
+    </android.support.design.widget.TextInputLayout>
+
     <android.support.v7.widget.AppCompatButton
-        android:id="@+id/login"
-        style="@style/Widget.AppCompat.Button.Colored"
+        android:id="@+id/register"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
@@ -50,8 +66,8 @@
         android:layout_marginRight="24dp"
         android:padding="12dp"
         android:textSize="23dp"
-        android:text="Login"/>
-
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:text="Register"/>
 
     <TextView
         android:id="@+id/textView"
@@ -60,17 +76,19 @@
         android:textSize="15dp"
         android:gravity="center"
         android:padding="5dp"
-        android:text="Don't have an account ?" />
+        android:text="Already Registered In ?" />
 
     <android.support.v7.widget.AppCompatButton
-        android:id="@+id/register"
+        android:id="@+id/login"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
+        android:layout_marginLeft="24dp"
+        android:layout_marginRight="24dp"
         android:padding="6dp"
         android:textSize="20dp"
         android:textAllCaps="false"
         style="@style/Widget.AppCompat.Button.Borderless"
-        android:text="Register"/>
+        android:text="Login"/>
 
 </LinearLayout>

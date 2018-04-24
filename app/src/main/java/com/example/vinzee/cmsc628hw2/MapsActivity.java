@@ -5,28 +5,52 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener {
 
     private GoogleMap mMap;
     private LocationManager locationManager;
     private LatLng currLocation;
+    private String username;
+    private Float zoomLevel = 14.5f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        Bundle b = getIntent().getExtras();
+        username = b.getString("username");
+        Log.d("onCreate", "username: " + username);
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -56,6 +80,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        locationManager.removeUpdates(this);
+    }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -75,19 +106,139 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         double latitude = location.getLatitude();
         double longitude = location.getLongitude();
 
-        Log.d("onLocationChanged: ", latitude + "" + longitude);
+        Log.d("onLocationChanged: ", latitude + " , " + longitude);
         currLocation = new LatLng(latitude, longitude);
 
         if (mMap != null) {
-            mMap.addMarker(new MarkerOptions().position(currLocation).title("Current Location"));
-//            mMap.moveCamera(CameraUpdateFactory.newLatLng(currLocation), 15.0f);
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currLocation, 15.0f));
+            JSONObject params = new JSONObject();
+            try {
+                params.put("username", username);
+                params.put("latitude", latitude);
+                params.put("longitude", longitude);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
 
-//            Timestamp timestamp = new Timestamp();
-            System.out.println(System.currentTimeMillis());
+            Log.d("Params: ", params.toString());
+
+            new MapsActivity.WebserviceAsyncTask().execute(params);
         }
 
     }
+
+    private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]> {
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onPostExecute(String[] s) {
+            super.onPostExecute(s);
+            Log.w("WebserviceAsyncTask","onPostExecute called: " + System.currentTimeMillis());
+            Toast.makeText(MapsActivity.this, s[1].toString(), Toast.LENGTH_SHORT).show();
+
+            if(s[0] == "true"){
+                mMap.clear();
+
+                // Fill color of the circle
+                // 0x represents, this is an hexadecimal code
+                // 55 represents percentage of transparency. For 100% transparency, specify 00.
+                // For 0% transparency ( ie, opaque ) , specify ff
+                // The remaining 6 characters(00ff00) specify the fill color
+
+                mMap.addCircle(new CircleOptions()
+                        .center(currLocation)
+                        .radius(1000)
+                        .strokeColor(0x990060ba)
+                        .strokeWidth(2)
+                        .fillColor(0x6075b7f5));
+
+                mMap.addMarker(new MarkerOptions()
+                        .position(currLocation)
+                        .title(username)
+                        .snippet("Your location")
+                ).showInfoWindow();
+
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currLocation, zoomLevel));
+
+                try {
+                    JSONArray nearByFriends = new JSONArray(s[2]);
+
+                    for (int i = 0 ; i < nearByFriends.length(); i++) {
+                        JSONArray friend = nearByFriends.getJSONArray(i);
+
+                        mMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(friend.getJSONArray(2).getDouble(0), friend.getJSONArray(2).getDouble(1)))
+                                .title(friend.getString(0))
+                                .snippet(String.valueOf(friend.getDouble(1)) + "m")
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                        );
+
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        @Override
+        protected String[] doInBackground(JSONObject... jsonObjects) {
+            Log.w("WebserviceAsyncTask","doInBackground");
+
+            try {
+                URL url = new URL(Constants.BASE_URL + "/update_location");
+
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setReadTimeout(5000);
+                connection.setConnectTimeout(5000);
+                connection.setRequestMethod("PUT");
+                connection.setDoInput(true);
+                connection.setChunkedStreamingMode(0);
+                connection.setRequestProperty("Content-Type", "application/json;charset=utf-8");
+                connection.setRequestProperty("X-Requested-With", "XMLHttpRequest");
+                connection.connect();
+
+                Writer writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()));
+                writer.write(jsonObjects[0].toString());
+                writer.close();
+
+                if(connection.getResponseCode() == HttpURLConnection.HTTP_OK)   {
+                    StringBuilder line = new StringBuilder();
+                    BufferedReader bread = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+                    String temp;
+                    while ((temp = bread.readLine()) != null) {
+                        line.append(temp);
+                    }
+                    bread.close();
+
+                    Log.d("WebserviceAsyncTask","executed successfully: " + line);
+
+                    return new String[]{"true", "Locations Updated !", line.toString()};
+                } else {
+                    Log.d("WebserviceAsyncTask", "Invalid Request: " + connection.getResponseCode() + " , " + connection.getResponseMessage());
+
+                    return new String[] {"false", "Invalid Request: " + connection.getResponseCode()};
+                }
+            } catch (IOException e) {
+                Log.d("WebserviceAsyncTask: ", "IOException");
+                e.printStackTrace();
+                return new String[] {"false", "IOException: " + e.getMessage()};
+            } catch (Exception e) {
+                Log.d("WebserviceAsyncTask: ", "Exception");
+                e.printStackTrace();
+                return new String[]{"false", "Exception: " + e.getMessage()};
+            }
+        }
+    }
+    
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
 
@@ -102,4 +253,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onProviderDisabled(String provider) {
 
     }
+
 }

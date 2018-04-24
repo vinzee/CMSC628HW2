@@ -1,10 +1,6 @@
 package com.example.vinzee.cmsc628hw2;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -25,72 +21,35 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+public class Register extends AppCompatActivity implements View.OnClickListener {
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
-    private EditText edtUser, edtPassword;
+    private EditText edtUser, edtPassword, edtPasswordConf;
     private Button btnLogin, btnRegister;
     private String username, password;
-    private SharedPreferences sharedpreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_register);
 
         edtUser = findViewById(R.id.username);
         edtPassword = findViewById(R.id.password);
+        edtPasswordConf = findViewById(R.id.password_confirmation);
 
         btnLogin = findViewById(R.id.login);
         btnLogin.setOnClickListener(this);
         btnRegister = findViewById(R.id.register);
         btnRegister.setOnClickListener(this);
-
-        ConnectivityManager cm = (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
-
-        Log.d("isConnected: ", isConnected + "");
-
-        if (!isConnected) {
-            Toast.makeText(MainActivity.this, "No internet connectivity", Toast.LENGTH_SHORT).show();
-        }
-
-        sharedpreferences = getSharedPreferences("MyPREFERENCES", Context.MODE_PRIVATE);
-
-        if (sharedpreferences.contains("username")) {
-            username = sharedpreferences.getString("username", "");
-
-            if (!username.equals("")) {
-                Toast.makeText(MainActivity.this, "User " + username + " logged in!", Toast.LENGTH_SHORT).show();
-
-                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
-                Bundle b = new Bundle();
-                b.putString("username", username);
-                intent.putExtras(b);
-                MainActivity.this.startActivity(intent);
-            }
-        }
-
-        Bundle b = getIntent().getExtras();
-
-        if (b != null) {
-            if (b.containsKey("username")){
-                edtUser.setText(b.getString("username"));
-            }
-
-            if (b.containsKey("password")){
-                edtUser.setText(b.getString("password"));
-            }
-        }
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.login:
+            case R.id.register:
                 username = edtUser.getText().toString().trim();
                 password = edtPassword.getText().toString().trim();
+                String passwordConf = edtPasswordConf.getText().toString().trim();
 
                 if (username.equals("")) {
                     edtUser.setError( "User Name is required." );
@@ -99,6 +58,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 if (password.equals("")) {
                     edtPassword.setError( "Password is required." );
+                    return;
+                }
+
+                if (!password.equals(passwordConf)) {
+                    edtPasswordConf.setError( "Password confirmation does not match password." );
                     return;
                 }
 
@@ -115,19 +79,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 new WebserviceAsyncTask().execute(params);
                 break;
-            case R.id.register:
-                Intent intent = new Intent(MainActivity.this, Register.class);
+            case R.id.login:
+                Intent intent = new Intent(Register.this, MainActivity.class);
                 Bundle b = new Bundle();
                 b.putString("username", username);
                 intent.putExtras(b);
-                MainActivity.this.startActivity(intent);
-
+                Register.this.startActivity(intent);
                 break;
-
         }
     }
 
-    private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]>{
+    private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]> {
 
         @Override
         protected void onProgressUpdate(Integer... values) {
@@ -143,18 +105,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         protected void onPostExecute(String[] s) {
             super.onPostExecute(s);
             Log.w("WebserviceAsyncTask","onPostExecute");
-            Toast.makeText(MainActivity.this, s[1].toString(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(Register.this, s[1].toString(), Toast.LENGTH_SHORT).show();
 
             if(s[0] == "true"){
-                SharedPreferences.Editor editor = sharedpreferences.edit();
-                editor.putString("username", username);
-                editor.commit();
-
-                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
+                Intent intent = new Intent(Register.this, MainActivity.class);
                 Bundle b = new Bundle();
                 b.putString("username", username);
+                b.putString("password", password);
                 intent.putExtras(b);
-                MainActivity.this.startActivity(intent);
+                Register.this.startActivity(intent);
             }
         }
 
@@ -164,7 +123,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             try {
 
-                URL url = new URL(Constants.BASE_URL + "/login");
+                URL url = new URL(Constants.BASE_URL + "/register");
 
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setReadTimeout(5000);
@@ -194,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     Log.d("WebserviceAsyncTask","executed successfully!" + line);
 
-                    return new String[]{"true", "User logged in!"};
+                    return new String[]{"true", "User Registered Successfully!"};
                 } else {
                     Log.d("WebserviceAsyncTask", "Invalid Request: " + connection.getResponseCode() + " , " + connection.getResponseMessage());
 
