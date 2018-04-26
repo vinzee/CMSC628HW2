@@ -36,6 +36,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        sharedpreferences = getSharedPreferences("MyPREFERENCES", Context.MODE_PRIVATE);
+
+        if (sharedpreferences.contains("username")) {
+            username = sharedpreferences.getString("username", "");
+            password = sharedpreferences.getString("password", "");
+
+            if (!username.equals("")) {
+                JSONObject params = new JSONObject();
+
+                try {
+                    params.put("username", username);
+                    params.put("password", password);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                Log.d("Params", params.toString());
+
+                new WebserviceAsyncTask().execute(params);
+
+            }
+
+            return;
+        }
+
         setContentView(R.layout.activity_main);
 
         edtUser = findViewById(R.id.username);
@@ -56,22 +81,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Toast.makeText(MainActivity.this, "No internet connectivity", Toast.LENGTH_SHORT).show();
         }
 
-        sharedpreferences = getSharedPreferences("MyPREFERENCES", Context.MODE_PRIVATE);
-
-        if (sharedpreferences.contains("username")) {
-            username = sharedpreferences.getString("username", "");
-
-            if (!username.equals("")) {
-                Toast.makeText(MainActivity.this, "User " + username + " logged in!", Toast.LENGTH_SHORT).show();
-
-                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
-                Bundle b = new Bundle();
-                b.putString("username", username);
-                intent.putExtras(b);
-                MainActivity.this.startActivity(intent);
-            }
-        }
-
         Bundle b = getIntent().getExtras();
 
         if (b != null) {
@@ -80,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             if (b.containsKey("password")){
-                edtUser.setText(b.getString("password"));
+                edtPassword.setText(b.getString("password"));
             }
         }
     }
@@ -114,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Log.d("Params", params.toString());
 
                 new WebserviceAsyncTask().execute(params);
+
                 break;
             case R.id.register:
                 Intent intent = new Intent(MainActivity.this, Register.class);
@@ -148,6 +158,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if(s[0] == "true"){
                 SharedPreferences.Editor editor = sharedpreferences.edit();
                 editor.putString("username", username);
+                editor.putString("password", password);
                 editor.commit();
 
                 Intent intent = new Intent(MainActivity.this, MapsActivity.class);
@@ -168,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setReadTimeout(5000);
-                connection.setConnectTimeout(5000);
+                connection.setConnectTimeout(3000);
                 connection.setRequestMethod("POST");
                 connection.setDoInput(true);
                 connection.setChunkedStreamingMode(0);
@@ -184,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     StringBuilder line = new StringBuilder();
                     BufferedReader bread = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
-                    String temp = "";
+                    String temp;
                     while ((temp = bread.readLine()) != null) {
                         line.append(temp);
                     }
@@ -194,11 +205,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     Log.d("WebserviceAsyncTask","executed successfully!" + line);
 
-                    return new String[]{"true", "User logged in!"};
+                    return new String[]{"true", "User logged In !"};
                 } else {
                     Log.d("WebserviceAsyncTask", "Invalid Request: " + connection.getResponseCode() + " , " + connection.getResponseMessage());
 
-                    return new String[] {"false", "Invalid Request: " + connection.getResponseMessage()};
+                    return new String[] {"false", "Error: " + connection.getResponseMessage()};
                 }
             } catch (IOException e) {
                 Log.d("WebserviceAsyncTask: ", "IOException");

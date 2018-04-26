@@ -127,7 +127,7 @@ public class Register extends AppCompatActivity implements View.OnClickListener 
 
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setReadTimeout(5000);
-                connection.setConnectTimeout(5000);
+                connection.setConnectTimeout(3000);
                 connection.setRequestMethod("POST");
                 connection.setDoInput(true);
                 connection.setChunkedStreamingMode(0);
@@ -157,7 +157,7 @@ public class Register extends AppCompatActivity implements View.OnClickListener 
                 } else {
                     Log.d("WebserviceAsyncTask", "Invalid Request: " + connection.getResponseCode() + " , " + connection.getResponseMessage());
 
-                    return new String[] {"false", "Invalid Request: " + connection.getResponseMessage()};
+                    return new String[] {"false", "Error: " + connection.getResponseMessage()};
                 }
             } catch (IOException e) {
                 Log.d("WebserviceAsyncTask: ", "IOException");

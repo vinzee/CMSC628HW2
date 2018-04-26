@@ -1,6 +1,9 @@
 package com.example.vinzee.cmsc628hw2;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -8,8 +11,11 @@ import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -34,13 +40,14 @@ import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, LocationListener {
 
     private GoogleMap mMap;
     private LocationManager locationManager;
     private LatLng currLocation;
     private String username;
     private Float zoomLevel = 14.5f;
+    private SharedPreferences sharedpreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +64,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        sharedpreferences = getSharedPreferences("MyPREFERENCES", Context.MODE_PRIVATE);
+
+        ActionBar actionBar = getSupportActionBar();
+
+        actionBar.setTitle("Friend Finder");
+        actionBar.setLogo(R.mipmap.ic_launcher);
+        actionBar.setDisplayShowHomeEnabled(true);
+        actionBar.setDisplayUseLogoEnabled(true);
     }
 
     @Override
@@ -87,6 +103,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationManager.removeUpdates(this);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        locationManager.removeUpdates(this);
+    }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -103,27 +126,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-        double latitude = location.getLatitude();
-        double longitude = location.getLongitude();
+        if (location.getLatitude() != 0.0 && location.getLongitude() != 0.0) {
+            double latitude = location.getLatitude();
+            double longitude = location.getLongitude();
 
-        Log.d("onLocationChanged: ", latitude + " , " + longitude);
-        currLocation = new LatLng(latitude, longitude);
+            Log.d("onLocationChanged: ", latitude + " , " + longitude);
+            currLocation = new LatLng(latitude, longitude);
 
-        if (mMap != null) {
-            JSONObject params = new JSONObject();
-            try {
-                params.put("username", username);
-                params.put("latitude", latitude);
-                params.put("longitude", longitude);
-            } catch (JSONException e) {
-                e.printStackTrace();
+            if (mMap != null) {
+                JSONObject params = new JSONObject();
+                try {
+                    params.put("username", username);
+                    params.put("latitude", latitude);
+                    params.put("longitude", longitude);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                Log.d("Params: ", params.toString());
+
+                new MapsActivity.WebserviceAsyncTask().execute(params);
             }
-
-            Log.d("Params: ", params.toString());
-
-            new MapsActivity.WebserviceAsyncTask().execute(params);
         }
-
     }
 
     private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]> {
@@ -153,6 +177,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // For 0% transparency ( ie, opaque ) , specify ff
                 // The remaining 6 characters(00ff00) specify the fill color
 
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currLocation, zoomLevel));
+
                 mMap.addCircle(new CircleOptions()
                         .center(currLocation)
                         .radius(1000)
@@ -165,8 +191,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .title(username)
                         .snippet("Your location")
                 ).showInfoWindow();
-
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currLocation, zoomLevel));
 
                 try {
                     JSONArray nearByFriends = new JSONArray(s[2]);
@@ -197,7 +221,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setReadTimeout(5000);
-                connection.setConnectTimeout(5000);
+                connection.setConnectTimeout(3000);
                 connection.setRequestMethod("PUT");
                 connection.setDoInput(true);
                 connection.setChunkedStreamingMode(0);
@@ -221,11 +245,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     Log.d("WebserviceAsyncTask","executed successfully: " + line);
 
-                    return new String[]{"true", "Locations Updated !", line.toString()};
+                    return new String[]{"true", "Location Updated", line.toString()};
                 } else {
                     Log.d("WebserviceAsyncTask", "Invalid Request: " + connection.getResponseCode() + " , " + connection.getResponseMessage());
 
-                    return new String[] {"false", "Invalid Request: " + connection.getResponseCode()};
+                    return new String[] {"false", "Error: " + connection.getResponseCode()};
                 }
             } catch (IOException e) {
                 Log.d("WebserviceAsyncTask: ", "IOException");
@@ -254,4 +278,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    // Menu icons are inflated just as they were with actionbar
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        MenuItem usernameMenuItem = menu.findItem(R.id.username_label);
+        usernameMenuItem.setTitle(username);
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.logout:
+                sharedpreferences.edit().remove("username").commit();
+
+                Intent intent = new Intent(MapsActivity.this, MainActivity.class);
+                Bundle b = new Bundle();
+                b.putString("username", username);
+                intent.putExtras(b);
+                MapsActivity.this.startActivity(intent);
+
+                Toast.makeText(MapsActivity.this, "User logged out", Toast.LENGTH_SHORT).show();
+
+                return true;
+
+            default:
+                // If we got here, the user's action was not recognized.
+                // Invoke the superclass to handle it.
+                return super.onOptionsItemSelected(item);
+
+        }
+    }
 }
