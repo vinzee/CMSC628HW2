@@ -3,15 +3,11 @@
     xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item android:id="@+id/username_label"
-        android:title="Guest"
-        app:showAsAction="always|withText"
-        >
-        <!--android:icon="@mipmap/account"-->
+        android:title=""
+        app:showAsAction="always">
     </item>
 
     <item android:id="@+id/logout"
         android:title="@string/action_sign_out_short"
         app:showAsAction="never" />
-    <!--android:icon="@mipmap/people"-->
-
 </menu>
