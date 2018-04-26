@@ -10,6 +10,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -48,6 +49,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String username;
     private Float zoomLevel = 14.5f;
     private SharedPreferences sharedpreferences;
+    private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,33 +82,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onResume();
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
 
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 99);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.INTERNET}, 99);
 
             return;
         }
 
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+
+        handler.postDelayed(runnable, 1000*5);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        locationManager.removeUpdates(this);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
+        handler.removeCallbacks(runnable);
         locationManager.removeUpdates(this);
     }
 
@@ -128,18 +120,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onLocationChanged(Location location) {
         if (location.getLatitude() != 0.0 && location.getLongitude() != 0.0) {
-            double latitude = location.getLatitude();
-            double longitude = location.getLongitude();
+            Log.d("onLocationChanged: ", location.getLatitude() + " , " + location.getLongitude());
+            currLocation = new LatLng(location.getLatitude(), location.getLongitude());
+        }
+    }
 
-            Log.d("onLocationChanged: ", latitude + " , " + longitude);
-            currLocation = new LatLng(latitude, longitude);
+    private Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            /* do what you need to do */
 
-            if (mMap != null) {
+            if (mMap != null && currLocation != null) {
                 JSONObject params = new JSONObject();
                 try {
                     params.put("username", username);
-                    params.put("latitude", latitude);
-                    params.put("longitude", longitude);
+                    params.put("latitude", currLocation.latitude);
+                    params.put("longitude", currLocation.longitude);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -148,8 +144,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 new MapsActivity.WebserviceAsyncTask().execute(params);
             }
+
+            /* and here comes the "trick" */
+            handler.postDelayed(this, 1000*5);
         }
-    }
+    };
 
     private class WebserviceAsyncTask extends AsyncTask<JSONObject, Integer, String[]> {
 
@@ -190,7 +189,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 mMap.addMarker(new MarkerOptions()
                         .position(currLocation)
                         .title(username)
-                        .snippet("Your location")
+                        .snippet("My location")
                 ).showInfoWindow();
 
                 try {
