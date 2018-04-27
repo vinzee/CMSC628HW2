@@ -57,8 +57,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 new WebserviceAsyncTask().execute(params);
 
             }
-
-            return;
         }
 
         setContentView(R.layout.activity_main);
